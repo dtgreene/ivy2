@@ -2,10 +2,13 @@ import bluetooth
 import queue
 import threading
 import select
+import socket
 
-OUT_QUEUE_TIMEOUT = 0.1
-IN_QUEUE_TIMEOUT = 0.1
+QUEUE_TIMEOUT_OUT = 0.1
+QUEUE_TIMEOUT_IN = 0.1
 
+# the amount of time without sending any messages before disconnecting
+AUTO_DISCONNECT_TIMEOUT = 30
 
 class ClientThread(threading.Thread):
     def __init__(self, mac, port, receive_size=4096):
@@ -21,6 +24,8 @@ class ClientThread(threading.Thread):
         self.outbound_q = queue.Queue()
         self.inbound_q = queue.Queue()
 
+        self.disconnect_timer = threading.Timer(AUTO_DISCONNECT_TIMEOUT, self.disconnect)
+
         self.start()
 
     def connect(self):
@@ -33,17 +38,27 @@ class ClientThread(threading.Thread):
 
     def run(self):
         while self.alive.is_set():
+            # check that the socket is still active
+            try:
+                self.sock.getpeername()
+            except socket.error:
+                self.disconnect()
+
             # send any out bound messages
             try:
                 # get the next out queue item
-                message = self.outbound_q.get(True, OUT_QUEUE_TIMEOUT)
+                message = self.outbound_q.get(True, QUEUE_TIMEOUT_OUT)
 
                 self.sock.send(message)
+
+                # reset the timer
+                self.disconnect_timer.cancel()
+                self.disconnect_timer = threading.Timer(AUTO_DISCONNECT_TIMEOUT, self.disconnect)
             except queue.Empty:
                 pass
 
             # check if the socket is readable
-            result = select.select([self.sock], [], [], IN_QUEUE_TIMEOUT)
+            result = select.select([self.sock], [], [], QUEUE_TIMEOUT_IN)
 
             # receive any incoming messages
             if result[0]:
@@ -54,25 +69,9 @@ class ClientThread(threading.Thread):
             self.sock.close()
             self.sock = None
 
+        self.disconnect_timer.cancel()
+
         # unset the alive event so run() will not continue
         self.alive.clear()
         # block the calling thread until this thread completes
         threading.Thread.join(self, timeout)
-
-    # def perform_task(self, task):
-    #     message = task.get_packets()
-    #     print("[Sent]: {}".format(message.hex()))
-
-    #     # send the message
-    #     self.sock.send(message)
-
-    #     # receive a response while blocking
-    #     response = self.sock.recv(4096)
-    #     print("[Rcvd]: {}".format(response.hex()))
-
-    #     payload, ack, error = serial.parse_in_packet(response)
-
-    #     if error:
-    #         print("Packet contained error: {}".format(error))
-
-    #     task.on_read_data(response, payload, ack)

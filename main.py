@@ -1,87 +1,155 @@
-# sudo hciconfig 0 sspmode 0
-
-import bluetooth
 import time
+import bluetooth
+import queue
+from loguru import logger
 
-import utils
-import serial
+from task import (
+    StartSessionTask,
+    GetStatusTask,
+    GetSettingTask,
+    GetPrintReadyTask
+)
+import image
+
+from exceptions import (
+    ClientUnavailableError,
+    ReceiveTimeoutError,
+    AckError,
+    LowBatteryError,
+    CoverOpenError,
+    NoPaperError,
+    WrongSmartSheetError
+)
+from client import ClientThread
 
 PRINTER_MAC = "04:7F:0E:B7:46:0B"
 PRINTER_SERIAL_PORT = 1
-PRINTER_MAX_TRANSFER_UNIT = 65535
 
-task_listeners = {
-  serial.ACK_GET_STATUS: [],
-  serial.ACK_START_SESSION: [],
-  serial.ACK_GET_STATUS: [],
-  serial.ACK_SETTING_ACCESSORY: [],
-  serial.ACK_PRINT_READY: [],
-  serial.ACK_REBOOT: [],
-}
+PRINT_BATTERY_MIN = 30
+PRINT_DATA_CHUNK = 990
+
+client = ClientThread(PRINTER_MAC, PRINTER_SERIAL_PORT)
+
 
 def main():
-  print("Connecting to {} on port {}".format(PRINTER_MAC, PRINTER_SERIAL_PORT))
+    logger.info("Connecting...")
 
-  # Create the client socket
-  sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
-  sock.connect((PRINTER_MAC, PRINTER_SERIAL_PORT))
+    try:
+        client.connect()
+        logger.info("Connected")
 
-  print("Connected")
+        perform_task(StartSessionTask())
 
-  time.sleep(1)
-  sock.send(serial.start_session())
+        # verify the printer is ready for printing
+        printer_status = perform_task(GetStatusTask())
+        check_print_worthiness(printer_status)
 
-  try:
-    while True:
-      data = sock.recv(4096)
+        # probably not necessary but mimicking the original
+        perform_task(GetSettingTask())
 
-      if not data:
-        break
+        # prepare the image
+        image_bytes = image.prepare_image("./assets/shrek.jpg")
+        image_length = len(image_bytes)
 
-      handle_response(data)
+        # let the printer know we about to start blasting data
+        perform_task(GetPrintReadyTask(image_length))
 
-  except OSError:
-    pass
+        logger.info("Beginning data transfer...")
 
-  print("Disconnected.")
-  sock.close()
+        start_index = 0
+        while True:
+            end_index = min(start_index + PRINT_DATA_CHUNK, image_length)
+            image_chunk = image_bytes[start_index:end_index]
 
-def handle_response(data): 
-  payload, ack, error = serial.parse_in_packet(data)
+            client.outbound_q.put(image_chunk)
 
-  print("Received response: ack: {}, error: {}".format(ack, error))
+            progress = (end_index * 100) / image_length
+            logger.info("Transfer progress: {}%", round(progress))
 
-  # parse response
-  if ack == serial.ACK_START_SESSION:
-    battery_level = utils.get_bit_range(((data[9] << 8) | (data[10])), 6)
-    mtu = (((data[11] & 255) << 8) | (data[12] & 255))
+            if end_index >= image_length:
+                break
 
-    print("Start session: mtu: {}, battery level: {}".format(mtu, battery_level))
-  elif ack == serial.ACK_GET_STATUS:
-    i = (payload[0] << 8) | payload[1]
+            start_index = end_index
+        
+        logger.info("Data transfer complete!")
 
-    error_code = payload[2]
-    battery_level = utils.get_bit_range(i, 6)
-    usb_status = (i >> 7) & 1
+    except bluetooth.btcommon.BluetoothError as e:
+        logger.error("Could not connect to printer: {}", e)
 
-    queue_flags = ((payload[4] & 255) << 8) | (payload[5] & 255)
+    client.disconnect()
 
-    is_cover_open = queue_flags & 1 == 1
-    is_no_paper = queue_flags & 2 == 2
-    is_wrong_smart_sheet = queue_flags & 16 == 16
 
-    print("Status: error code: {}, battery level: {}, usb status: {}, cover open: {}, no paper: {}, wrong smart sheet: {}".format(
-      error_code, 
-      battery_level, 
-      usb_status, 
-      is_cover_open, 
-      is_no_paper, 
-      is_wrong_smart_sheet
-    ))
-  elif ack == serial.ACK_PRINT_READY:
-    unknown = payload[2] & 255
-    error_code = payload[3] & 255
+def check_print_worthiness(status):
+    error_code, battery_level, _, is_cover_open, is_no_paper, is_wrong_smart_sheet = status
 
-    print("Print ready: unknown: {}, error code: {}".format(unknown, error_code))
+    if error_code != 0:
+        logger.error("Status contains a non-zero error code: {}", error_code)
+
+    if battery_level < PRINT_BATTERY_MIN:
+        raise LowBatteryError()
+
+    if is_cover_open:
+        raise CoverOpenError()
+
+    if is_no_paper:
+        raise NoPaperError()
+
+    if is_wrong_smart_sheet:
+        raise WrongSmartSheetError()
+
+
+def perform_task(task):
+    # send the task's message
+    send_message(task.get_message())
+    response = receive_message()
+
+    if response[3] != task.ack:
+        raise AckError("StartSessionTask got invalid ack; expected {} but got {}".format(
+            task.ack, response[3]
+        ))
+
+    # process and return the response
+    return task.process_response(receive_message())
+
+
+def send_message(message):
+    if not client.alive.is_set():
+        raise ClientUnavailableError()
+
+    logger.debug("Sending message: {}", message)
+    # add the message to the client thread's outbound queue
+    client.outbound_q.put(message)
+
+
+def receive_message(timeout=5):
+    start = int(time.time())
+    while int(time.time()) < (start + timeout):
+        if not client.alive.is_set():
+            raise ClientUnavailableError()
+
+        try:
+            # attempt to read the client thread's inbound queue
+            response = parse_incoming_message(client.inbound_q.get(False))
+            logger.debug(
+                "Received message: ack: {}, error: {}",
+                response[2],
+                response[3]
+            )
+            return response
+        except queue.Empty:
+            time.sleep(0.1)
+
+    raise ReceiveTimeoutError()
+
+
+def parse_incoming_message(data):
+    """General parser for all messages coming from the printer."""
+
+    payload = data[8:len(data)]
+    ack = (data[6] & 255) | ((data[5] & 255) << 8)
+    error = data[7] & 255
+
+    return data, payload, ack, error
+
 
 main()
