@@ -26,15 +26,15 @@ class ClientThread(threading.Thread):
 
         self.disconnect_timer = threading.Timer(AUTO_DISCONNECT_TIMEOUT, self.disconnect)
 
-        self.start()
-
     def connect(self):
         # create socket and connect
         sock = bluetooth.BluetoothSocket(bluetooth.RFCOMM)
         sock.connect((self.mac, self.port))
+        sock.setblocking(False)
 
         self.sock = sock
         self.alive.set()
+        self.start()
 
     def run(self):
         while self.alive.is_set():
@@ -57,21 +57,20 @@ class ClientThread(threading.Thread):
             except queue.Empty:
                 pass
 
-            # check if the socket is readable
-            result = select.select([self.sock], [], [], QUEUE_TIMEOUT_IN)
-
             # receive any incoming messages
-            if result[0]:
+            try:
                 self.inbound_q.put(self.sock.recv(self.receive_size))
+            except bluetooth.BluetoothError:
+                pass
 
     def disconnect(self, timeout=None):
         if self.sock:
             self.sock.close()
-            self.sock = None
 
         self.disconnect_timer.cancel()
 
         # unset the alive event so run() will not continue
         self.alive.clear()
+
         # block the calling thread until this thread completes
         threading.Thread.join(self, timeout)

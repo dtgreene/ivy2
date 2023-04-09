@@ -14,15 +14,15 @@ def prepare_image(path, quality=100):
 
     if scaled_width < PRINT_OUT_WIDTH:
         scaled_width = PRINT_OUT_WIDTH
-        scaled_height = scaled_width * ratio
+        scaled_height = int(scaled_width * ratio)
 
     if scaled_height < PRINT_OUT_HEIGHT:
         scaled_height = PRINT_OUT_HEIGHT
-        scaled_width = scaled_height / ratio
+        scaled_width = int(scaled_height / ratio)
 
     if scaled_width != width or scaled_height != height:
         image = image.resize(
-            (int(scaled_width), int(scaled_height)), Image.LANCZOS
+            (scaled_width, scaled_height), Image.LANCZOS
         )
 
     offset = (
@@ -37,5 +37,5 @@ def prepare_image(path, quality=100):
     # out_image.save("out.jpeg", format="JPEG", quality=90)
 
     with BytesIO() as out_stream:
-        out_image.save(out_stream, "JPEG", quality)
+        out_image.save(out_stream, format="JPEG", quality=quality)
         return out_stream.getvalue()

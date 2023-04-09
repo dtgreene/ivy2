@@ -1,12 +1,7 @@
 def main():
-    # data = bytes.fromhex("43f0000121000000014831ffff000000000000000000000000000000000000000000")
-    # payload, ack, error = parse_in_packet(data)
-    # print(payload, ack, error)
-    end_index = 8000
-    image_length = 12000
-    progress = (end_index * 100) / image_length
-
-    print("Progress: {}%".format(round(progress)))
+    data = bytes.fromhex("430f0001200101000000000000000000000000000000000000000000000000000000")
+    payload, ack, error = parse_in_packet(data)
+    print(payload, ack, error)
 
 def parse_in_packet(data):
     # get payload by skipping the first 8 bytes
