@@ -1,6 +1,6 @@
 import time
 import struct
-from socket import socket, AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM
+import socket
 
 import utils
 
@@ -13,13 +13,11 @@ COMMAND_START_SESSION = 0
 COMMAND_GET_STATUS = 257
 
 def main():
-    data = bytes.fromhex("43f000012101010044ac000000000000000000000000000000000000000000000000")
-    response = parse_in_packet(data)
-    print(response[0].hex())
-    
-    if response[1] == COMMAND_GET_STATUS:
-        print(process_status_response(response))
+    # data = bytes.fromhex("43f00001210101005440000000000000000000000000000000000000000000000000")
+    # response = parse_in_packet(data)
+    # print(response[0].hex(), response[1])
 
+    # example 1
     # sock = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM)
     # sock.connect((PRINTER_MAC, PRINTER_SERIAL_PORT))
 
@@ -29,6 +27,19 @@ def main():
     # data = sock.recv(1024)
 
     # print(data.hex())
+
+    # example 2
+    sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_RAW, socket.BTPROTO_HCI)
+
+    # create a packet with a custom payload
+    payload = bytes(get_base_message(COMMAND_GET_STATUS, True, False))
+    hci_type = 0x02  # HCI_ACL_DATA_PKT
+    hci_handle = 0x0001  # connection handle
+    hci_len = len(payload)
+    hci_packet = struct.pack('<HH', hci_handle, hci_len) + payload
+
+    # send the packet
+    sock.send(hci_packet)
 
 def process_status_response(response):
     payload = response[0]

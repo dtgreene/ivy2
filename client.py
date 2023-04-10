@@ -1,12 +1,11 @@
 import bluetooth
 import queue
 import threading
+import time
 from loguru import logger
 
 # the amount of time without sending any messages before disconnecting
 AUTO_DISCONNECT_TIMEOUT = 30
-
-OUTBOUND_QUEUE_TIMEOUT = 0.1
 
 
 class ClientThread(threading.Thread):
@@ -22,7 +21,9 @@ class ClientThread(threading.Thread):
         self.inbound_q = queue.Queue()
 
         self.disconnect_timer = threading.Timer(
-            AUTO_DISCONNECT_TIMEOUT, self.disconnect)
+            AUTO_DISCONNECT_TIMEOUT,
+            self.disconnect
+        )
 
     def connect(self, mac, port):
         # create socket and connect
@@ -47,13 +48,15 @@ class ClientThread(threading.Thread):
             # send any out bound messages
             try:
                 # get the next out queue item
-                message = self.outbound_q.get(True, OUTBOUND_QUEUE_TIMEOUT)
+                message = self.outbound_q.get(True, 0.1)
 
-                logger.info(
-                    "Sending message; approx. queue size: {}",
-                    self.outbound_q.qsize()
-                )
+                # logger.info(
+                #     "Sending message; approx. queue size: {}",
+                #     self.outbound_q.qsize()
+                # )
                 self.sock.send(message)
+
+                time.sleep(0.02)
 
                 # reset the timer
                 self.disconnect_timer.cancel()
