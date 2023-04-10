@@ -2,6 +2,7 @@ import time
 import bluetooth
 import queue
 import sys
+# import math
 from loguru import logger
 
 from task import (
@@ -29,14 +30,14 @@ PRINTER_SERIAL_PORT = 1
 PRINT_BATTERY_MIN = 30
 PRINT_DATA_CHUNK = 990
 
-client = ClientThread(PRINTER_MAC, PRINTER_SERIAL_PORT)
+client = ClientThread()
 
 
 def main():
     logger.info("Connecting...")
 
     try:
-        client.connect()
+        client.connect(PRINTER_MAC, PRINTER_SERIAL_PORT)
         logger.info("Connected")
     except bluetooth.btcommon.BluetoothError as e:
         logger.error("Could not connect to printer: {}", e)
@@ -45,18 +46,12 @@ def main():
     # start the session
     perform_task(StartSessionTask())
 
-    time.sleep(2)
-
     # verify the printer is ready for printing
     printer_status = perform_task(GetStatusTask())
     check_print_worthiness(printer_status)
 
-    time.sleep(2)
-
     # probably not necessary but mimicking the original
     perform_task(GetSettingTask())
-
-    time.sleep(2)
 
     # prepare the image
     image_bytes = image.prepare_image("./assets/shrek.jpg")
@@ -65,30 +60,33 @@ def main():
     # let the printer know we about to start blasting data
     perform_task(GetPrintReadyTask(image_length))
 
-    time.sleep(2)
-
     logger.info("Beginning data transfer...")
 
     start_index = 0
+    # last_progress = 0
     while True:
         end_index = min(start_index + PRINT_DATA_CHUNK, image_length)
         image_chunk = image_bytes[start_index:end_index]
 
         client.outbound_q.put(image_chunk)
 
-        progress = (end_index * 100.0) / image_length
-        logger.info("Transfer progress: {}%", round(progress, 2))
-
-        time.sleep(0.05)
+        # progress = (end_index * 100.0) / image_length
+        # rounded_progress = 10 * math.floor(progress / 10)
+        # if rounded_progress != last_progress:
+        #     logger.info("Transfer progress: {}%", rounded_progress)
+        #     last_progress = rounded_progress
 
         if end_index >= image_length:
             break
 
         start_index = end_index
-    
+
     logger.info("Data transfer complete!")
 
-    receive_message(10)
+    transfer_response = receive_message(300)
+    print(transfer_response[0].hex())
+
+    time.sleep(60)
 
     client.disconnect()
 
@@ -113,8 +111,8 @@ def check_print_worthiness(status):
 
 
 def perform_task(task):
-    logger.info("Performing task; ack {}", task.ack)
-    
+    logger.debug("Performing task; ack {}", task.ack)
+
     # send the task's message
     send_message(task.get_message())
     response = receive_message()

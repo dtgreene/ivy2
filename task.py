@@ -30,7 +30,7 @@ class StartSessionTask(BaseTask):
     ack = ACK_START_SESSION
 
     def get_message(self):
-        return bytes(get_base_message(COMMAND_START_SESSION))
+        return bytes(get_base_message(COMMAND_START_SESSION, True, False))
 
     def process_response(self, response):
         data = response[0]
