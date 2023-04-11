@@ -4,7 +4,7 @@ import image
 PRINTER_MAC = "04:7F:0E:B7:46:0B"
 
 
-def main():
+def print_shrek():
     printer = Ivy2Printer()
     printer.connect(PRINTER_MAC)
 
@@ -21,5 +21,3 @@ def preview_image(image_path, output_path="preview_image.jpeg"):
     with open(output_path, "wb") as file:
         file.write(image_data)
 
-
-main()
