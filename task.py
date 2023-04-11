@@ -1,6 +1,6 @@
 import struct
 
-import utils
+from utils import parse_battery_level
 
 START_CODE = 17167
 
@@ -35,7 +35,7 @@ class StartSessionTask(BaseTask):
     def process_response(self, response):
         data = response[0]
 
-        battery_level = utils.get_bit_range(((data[9] << 8) | (data[10])), 6)
+        battery_level = parse_battery_level((data[9] << 8) | (data[10]))
         mtu = (((data[11] & 255) << 8) | (data[12] & 255))
 
         return battery_level, mtu
@@ -94,7 +94,7 @@ class GetStatusTask(BaseTask):
         i = (payload[0] << 8) | payload[1]
 
         error_code = payload[2]
-        battery_level = utils.get_bit_range(i, 6)
+        battery_level = parse_battery_level(i)
         usb_status = (i >> 7) & 1
 
         queue_flags = ((payload[4] & 255) << 8) | (payload[5] & 255)

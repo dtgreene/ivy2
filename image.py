@@ -8,7 +8,7 @@ PRINT_FINAL_WIDTH = 640
 PRINT_FINAL_HEIGHT = 1616
 
 
-def prepare_image(path, quality=100):
+def prepare_image(path, quality=100, preview=False):
     image = Image.open(path, "r")
     width, height = image.size
     ratio = height / width
@@ -37,8 +37,13 @@ def prepare_image(path, quality=100):
     out_image = Image.new("RGB", (PRINT_START_WIDTH, PRINT_START_HEIGHT))
     out_image.paste(image, offset)
 
-    out_image = out_image.resize((PRINT_FINAL_WIDTH, PRINT_FINAL_HEIGHT))
-    out_image = out_image.rotate(180.0)
+    # skip the final transformation for preview mode
+    if not preview:
+        out_image = out_image.resize(
+            (PRINT_FINAL_WIDTH, PRINT_FINAL_HEIGHT), 
+            Image.LANCZOS
+        )
+        out_image = out_image.rotate(180.0)
 
     # debug
     # out_image.save("out.jpeg", format="JPEG", quality=quality)
