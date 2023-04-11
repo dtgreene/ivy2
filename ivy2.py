@@ -39,6 +39,9 @@ class Ivy2Printer:
 
     def disconnect(self):
         self.client.disconnect()
+    
+    def is_connected(self):
+        return self.client.alive.is_set()
 
     def print(self, target, transfer_timeout=60):
         image_data = bytes()
