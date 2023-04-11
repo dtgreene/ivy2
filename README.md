@@ -50,8 +50,10 @@ Once you've located the printer, take note of the mac address and attempt to pai
 - `pair <mac-addr>`
 - `trust <mac-addr>`
 
-You can now disable scanning and exit:
+You can now disable scanning and exit the BlueZ CLI:
 - `scan off`
 - `exit`
 
 ### Usage
+
+See [example.py](example.py) for basic usage.
