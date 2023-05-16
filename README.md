@@ -1,5 +1,8 @@
 # Ivy2
 
+![20230516_133925](https://github.com/dtgreene/ivy2/assets/24302976/1e9d4931-caf8-4aab-a176-1239dbba6856)
+
+
 A Python API to control the [Canon Ivy 2 mini photo printer](https://www.usa.canon.com/shop/p/ivy-2-mini-photo-printer).
 
 Note: So far, this has only been tested on a Raspberry PI 3b+.  The underlying PyBluez library should be cross-compatible but the pairing process will likely vary from platform to platform.
