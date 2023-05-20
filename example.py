@@ -1,14 +1,14 @@
 from ivy2 import Ivy2Printer
 import image
 
-PRINTER_MAC = "04:7F:0E:B7:46:0B"
+PRINTER_MAC = "XX:XX:XX:XX:XX:XX"
 
 
 def print_shrek():
     printer = Ivy2Printer()
     printer.connect(PRINTER_MAC)
 
-    printer.print("./assets/test_image.png")
+    printer.print("./assets/test_image.jpg")
 
     printer.disconnect()
 
@@ -20,4 +20,8 @@ def preview_image(image_path, output_path="preview_image.jpeg"):
 
     with open(output_path, "wb") as file:
         file.write(image_data)
+
+
+if __name__ == '__main__':
+    print_shrek()
 
