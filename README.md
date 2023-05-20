@@ -1,4 +1,4 @@
-# Ivy2
+# Ivy 2
 
 ![20230516_133925](https://github.com/dtgreene/ivy2/assets/24302976/1e9d4931-caf8-4aab-a176-1239dbba6856)
 
