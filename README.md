@@ -40,7 +40,7 @@ If this is your first time messing with Bluetooth on the PI, first register an a
 - `agent on`
 - `default-agent`
 
-Turn on the printer and wait abotu 30 seconds. Then enable scanning:
+Turn on the printer and wait about 30 seconds. Then enable scanning:
 - `scan on`
 
 You should start to see local Bluetooth devices popping up.  Most of the devices will just show a mac address but the printer should have the name listed as well making it easy to spot.  You should see something like this:
