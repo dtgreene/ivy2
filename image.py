@@ -8,25 +8,22 @@ PRINT_FINAL_WIDTH = 640
 PRINT_FINAL_HEIGHT = 1616
 
 
-def prepare_image(path, quality=100, preview=False):
+def prepare_image(path, auto_crop=True, quality=100, preview=False):
     image = Image.open(path, "r")
     width, height = image.size
-    ratio = height / width
 
-    scaled_width = width
-    scaled_height = height
+    # determine the scale needed to reach the target dimensions
+    if auto_crop:
+        scale_factor = max(PRINT_START_WIDTH / width, PRINT_START_HEIGHT / height)
+    else:
+        scale_factor = min(PRINT_START_WIDTH / width, PRINT_START_HEIGHT / height)
 
-    if scaled_width < PRINT_START_WIDTH:
-        scaled_width = PRINT_START_WIDTH
-        scaled_height = int(scaled_width * ratio)
-
-    if scaled_height < PRINT_START_HEIGHT:
-        scaled_height = PRINT_START_HEIGHT
-        scaled_width = int(scaled_height / ratio)
+    scaled_width = int(width * scale_factor)
+    scaled_height = int(height * scale_factor)
 
     if scaled_width != width or scaled_height != height:
         image = image.resize(
-            (scaled_width, scaled_height), Image.LANCZOS
+            (scaled_width, scaled_height), Image.Resampling.LANCZOS
         )
 
     offset = (
@@ -41,12 +38,9 @@ def prepare_image(path, quality=100, preview=False):
     if not preview:
         out_image = out_image.resize(
             (PRINT_FINAL_WIDTH, PRINT_FINAL_HEIGHT), 
-            Image.LANCZOS
+            Image.Resampling.LANCZOS
         )
         out_image = out_image.rotate(180.0)
-
-    # debug
-    # out_image.save("out.jpeg", format="JPEG", quality=quality)
 
     with BytesIO() as out_stream:
         out_image.save(out_stream, format="JPEG", quality=quality)

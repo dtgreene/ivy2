@@ -43,11 +43,11 @@ class Ivy2Printer:
     def is_connected(self):
         return self.client.alive.is_set()
 
-    def print(self, target, transfer_timeout=60):
+    def print(self, target, auto_crop=True, transfer_timeout=60):
         image_data = bytes()
 
         if type(target) is str:
-            image_data = image.prepare_image(target)
+            image_data = image.prepare_image(target, auto_crop)
         elif type(target) is bytes:
             image_data = target
         else:
