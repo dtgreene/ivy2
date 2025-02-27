@@ -14,12 +14,17 @@ Note: So far, this has only been tested on a Raspberry PI 3b+.  The underlying P
 sudo apt install bluetooth bluez libbluetooth-dev
 ```
 
-2. Install pip packages
+2. Install pip packages (you may need to create a [virtual environment](https://docs.python.org/3/library/venv.html) first)
 ```
 pip install -r requirements.txt
 ```
 
-3. Disable legacy pairing
+3. Install BlueZ directly from the source ([see this comment](https://github.com/pybluez/pybluez/issues/431#issuecomment-1107884273))
+```
+pip install git+https://github.com/pybluez/pybluez.git#egg=pybluez
+```
+
+4. Disable legacy pairing
 
 This will need to be done each time the computer reboots.  Otherwise you may get an "Invalid exchange" error when trying to connect with the printer.
 
@@ -27,7 +32,7 @@ This will need to be done each time the computer reboots.  Otherwise you may get
 sudo hciconfig 0 sspmode 0
 ```
 
-4. Pair with the printer
+5. Pair with the printer
 
 This only needs to be done the first time.  
 
