@@ -16,10 +16,14 @@ ACK_SETTING_ACCESSORY = 259
 ACK_PRINT_READY = 769
 ACK_REBOOT = 65535
 
+AUTO_OFF_NEVER = 0
 AUTO_OFF_THREE = 3
 AUTO_OFF_FIVE = 5
 AUTO_OFF_TEN = 10
 
+COLOR_DEFAULT = 0
+COLOR_GREEN = 1
+COLOR_BLUE = 2
 
 class BaseTask:
     def process_response(self, _):
@@ -46,6 +50,13 @@ class GetSettingTask(BaseTask):
 
     def get_message(self):
         return bytes(get_base_message(COMMAND_SETTING_ACCESSORY))
+
+    def process_response(self, response):
+        payload = response[1]
+        
+        auto_power_off = struct.unpack('B', payload[:1])[0]
+
+        return auto_power_off
 
 
 class SetSettingTask(BaseTask):
