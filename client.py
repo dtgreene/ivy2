@@ -3,7 +3,7 @@ import queue
 import threading
 import time
 
-# the amount of time without sending any messages before disconnecting
+# the amount of time without sending any messages before disconnecting (in seconds)
 AUTO_DISCONNECT_TIMEOUT = 30
 
 
