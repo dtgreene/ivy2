@@ -16,7 +16,7 @@ def print_shrek():
 def preview_image(image_path, output_path="preview_image.jpeg"):
     """Get a preview of what the printed image will look like."""
 
-    image_data = image.prepare_image(image_path, 100, True)
+    image_data = image.prepare_image(image_path, True, 100, True)
 
     with open(output_path, "wb") as file:
         file.write(image_data)
