@@ -33,9 +33,9 @@ class Ivy2Printer:
 
     def connect(self, mac_address, port=1):
         self.client.connect(mac_address, port)
-        self.__start_session()
+        battery_level, mtu = self.__start_session()
 
-        logger.debug("Connected")
+        logger.debug("Connected; Battery level: {}; MTU: {}".format(battery_level, mtu))
 
     def disconnect(self):
         self.client.disconnect()
@@ -94,8 +94,13 @@ class Ivy2Printer:
     def get_setting(self):
         return self.__perform_task(GetSettingTask())
 
-    def set_setting(self, color_id, auto_power_off):
-        return self.__perform_task(SetSettingTask(color_id, auto_power_off))
+    def set_setting(self, auto_power_off):
+        """Sets the auto power off setting on the printer.
+        
+        auto_power_off: Time in minutes before the printer turns off without any
+        activity. Supported values are 3, 5, and 10.
+        """
+        return self.__perform_task(SetSettingTask(auto_power_off))
 
     def get_print_ready(self, length):
         return self.__perform_task(GetPrintReadyTask(length))

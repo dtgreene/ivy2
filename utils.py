@@ -1,7 +1,7 @@
-def parse_battery_level(input):
+def parse_bit_range(input, size):
     str = ""
 
-    for i in range(7):
+    for i in range(size):
         str += "1" if ((input >> i) & 1) == 1 else "0"
 
     try:

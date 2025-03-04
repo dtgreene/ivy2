@@ -1,6 +1,6 @@
 import struct
 
-from utils import parse_battery_level
+from utils import parse_bit_range
 
 START_CODE = 17167
 
@@ -16,14 +16,6 @@ ACK_SETTING_ACCESSORY = 259
 ACK_PRINT_READY = 769
 ACK_REBOOT = 65535
 
-AUTO_OFF_NEVER = 0
-AUTO_OFF_THREE = 3
-AUTO_OFF_FIVE = 5
-AUTO_OFF_TEN = 10
-
-COLOR_DEFAULT = 0
-COLOR_GREEN = 1
-COLOR_BLUE = 2
 
 class BaseTask:
     def process_response(self, _):
@@ -39,7 +31,7 @@ class StartSessionTask(BaseTask):
     def process_response(self, response):
         data = response[0]
 
-        battery_level = parse_battery_level((data[9] << 8) | (data[10]))
+        battery_level = parse_bit_range((data[9] << 8) | (data[10]), 6)
         mtu = (((data[11] & 255) << 8) | (data[12] & 255))
 
         return battery_level, mtu
@@ -53,31 +45,28 @@ class GetSettingTask(BaseTask):
 
     def process_response(self, response):
         payload = response[1]
-        
-        auto_power_off = struct.unpack('B', payload[:1])[0]
 
-        return auto_power_off
+        auto_power_off = payload[0]
+        firmware_version = "{}.{}.{}".format(payload[1], payload[2], payload[3])
+        tmd_version = payload[5]
+        number_of_photos_printed = (payload[6] << 8) | payload[7]
+        color_id = payload[8]
+
+        return auto_power_off, firmware_version, tmd_version, number_of_photos_printed, color_id
 
 
 class SetSettingTask(BaseTask):
     ack = ACK_SETTING_ACCESSORY
 
-    def __init__(self, color_id, auto_power_off):
+    def __init__(self, auto_power_off):
         super().__init__()
 
-        self.color_id = color_id
         self.auto_power_off = auto_power_off
 
     def get_message(self):
         base_message = get_base_message(COMMAND_SETTING_ACCESSORY, False, True)
 
-        struct.pack_into(
-            '>BB',
-            base_message,
-            8,
-            self.color_id,
-            self.auto_power_off
-        )
+        struct.pack_into('>B', base_message, 8, self.auto_power_off)
 
         return bytes(base_message)
 
@@ -105,7 +94,7 @@ class GetStatusTask(BaseTask):
         i = (payload[0] << 8) | payload[1]
 
         error_code = payload[2]
-        battery_level = parse_battery_level(i)
+        battery_level = parse_bit_range(i, 6)
         usb_status = (i >> 7) & 1
 
         queue_flags = ((payload[4] & 255) << 8) | (payload[5] & 255)
